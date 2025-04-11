@@ -31,6 +31,9 @@ jobs:
     # needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v3
       
@@ -53,17 +56,21 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: android-release
-          path: android/app/build/outputs/apk/release/
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 5
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'created'
+    permissions:
+      contents: write
     steps:
       - name: Download Android Build
         uses: actions/download-artifact@v3
         with:
           name: android-release
+          path: ./android-release
       
       # - name: Setup Google Play
       #   uses: r0adkll/upload-google-play@v1
