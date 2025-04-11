@@ -19,9 +19,10 @@ jobs:
         with:
           node-version: '18.x'
           cache: 'npm'
+          cache-dependency-path: package.json
       
       - name: Install Dependencies
-        run: npm ci
+        run: npm install
       
       - name: Run Linting
         run: npm run lint
@@ -41,9 +42,10 @@ jobs:
         with:
           node-version: '18.x'
           cache: 'npm'
+          cache-dependency-path: package.json
       
       - name: Install Dependencies
-        run: npm ci
+        run: npm install
       
       - name: Build Android
         run: |
