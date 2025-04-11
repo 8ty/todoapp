@@ -1,96 +1,55 @@
-name: CI/CD Pipeline
+name: Build Android APK
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  release:
-    types: [created]
 
 jobs:
-  # test:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-      
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: '18.x'
-  #         cache: 'npm'
-  #         cache-dependency-path: package.json
-      
-  #     - name: Install Dependencies
-  #       run: npm install
-      
-  #     - name: Run Tests
-  #       run: npm test -- --passWithNoTests
-
-  build:
-    # needs: test
+  build-android:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: read
-      packages: write
     steps:
-      - uses: actions/checkout@v3
-      
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18.x'
+          node-version: '18'
           cache: 'npm'
-          cache-dependency-path: package.json
-      
-      - name: Install Dependencies
-        run: npm install
-      
-      - name: Build Android
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '11'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Make Gradlew Executable
+        run: cd android && chmod +x ./gradlew
+
+      - name: Build Android Release
         run: |
           cd android
           ./gradlew assembleRelease
-      
-      - name: Upload Android Build
-        uses: aactions/upload-artifact@v4
-        with:
-          name: android-release
-          path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 5
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'created'
-    permissions:
-      contents: write
-    steps:
-      - name: Download Android Build
-        uses: actions/download-artifact@v3
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
         with:
-          name: android-release
-          path: ./android-release
-      
-      # - name: Setup Google Play
-      #   uses: r0adkll/upload-google-play@v1
-      #   with:
-      #     serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_CONFIG_JSON }}
-      #     packageName: com.taskmaster.pro
-      #     releaseFiles: app-release.apk
-      #     track: production
-          
-      - name: Create Release Notes
-        run: |
-          echo "## What's New" >> release_notes.md
-          echo "${{ github.event.release.body }}" >> release_notes.md
-      
-      - name: Upload Release Notes
-        uses: actions/upload-release-asset@v1
+          name: app-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: android/app/build/outputs/apk/release/app-release.apk
+          tag_name: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./release_notes.md
-          asset_name: release_notes.md
-          asset_content_type: text/markdown
